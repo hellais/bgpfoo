@@ -3,7 +3,6 @@
 # http://bgplay.routeviews.org/
 
 import os
-import itertools
 from datetime import datetime, timedelta
 
 from urllib2 import urlopen, URLError, HTTPError
@@ -11,6 +10,7 @@ from urllib2 import urlopen, URLError, HTTPError
 
 class InvalidNumber(Exception):
     pass
+
 
 def twoLetterNumber(number):
     """
@@ -25,6 +25,7 @@ def twoLetterNumber(number):
     else:
         raise InvalidNumber
 
+
 def datesInRange(start_date, end_date, slot_size=15):
     """
     Args:
@@ -32,7 +33,8 @@ def datesInRange(start_date, end_date, slot_size=15):
 
         end_date (datetime): The end date
 
-        slot_size (int): The expressed in minutes time slot for splitting dates.
+        slot_size (int): The expressed in minutes time slot for splitting
+                         dates.
     """
     delta = end_date - start_date
     # The number of slots in a day is the number of hours * 60 / slot_size
@@ -44,9 +46,11 @@ def datesInRange(start_date, end_date, slot_size=15):
         seconds = slot * 15 * 60
         yield start_date + timedelta(seconds=seconds)
 
+
 class RouteViewsArchive(object):
     baseUrl = "http://archive.routeviews.org/bgpdata/"
-    formatString = "%(year)s.%(month)s/UPDATES/updates.%(year)s%(month)s%(day)s.%(hour)s%(minute)s.bz2"
+    formatString = ("%(year)s.%(month)s/UPDATES/"
+                    "updates.%(year)s%(month)s%(day)s.%(hour)s%(minute)s.bz2")
 
     # we need to discard the seconds and minutes
     _x = datetime.now()
@@ -60,13 +64,14 @@ class RouteViewsArchive(object):
 
     def _updatesInRange(self):
         for d in datesInRange(self.startDate, self.endDate):
-            vals = {'year': d.year,
-                    'month': twoLetterNumber(d.month),
-                    'day': twoLetterNumber(d.day),
-                    'hour': twoLetterNumber(d.hour),
-                    'minute': twoLetterNumber(d.minute)
+            vals = {
+                'year': d.year,
+                'month': twoLetterNumber(d.month),
+                'day': twoLetterNumber(d.day),
+                'hour': twoLetterNumber(d.hour),
+                'minute': twoLetterNumber(d.minute)
             }
-            yield  self.formatString % vals
+            yield self.formatString % vals
 
     def _downloadFile(self, url):
         try:
@@ -86,12 +91,11 @@ class RouteViewsArchive(object):
             url = self.baseUrl + filename
             self._downloadFile(url)
 
-
-rva = RouteViewsArchive()
-rva.startDate = datetime(2012, 12, 2)
-rva.endDate = datetime(2012, 12, 3)
-# This will download the updates in the specified time period to the current
-# working directory.
-# XXX add possibility to configure where it should output the files to
-rva.downloadUpdates()
-
+if __name__ == "__main__":
+    rva = RouteViewsArchive()
+    rva.startDate = datetime(2012, 12, 2)
+    rva.endDate = datetime(2012, 12, 3)
+    # This will download the updates in the specified time period to the
+    # current working directory.
+    # XXX add possibility to configure where it should output the files to
+    rva.downloadUpdates()

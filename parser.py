@@ -1,25 +1,27 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import geoip
-import yaml
-import sys
-import os
-
 import subprocess
-from subprocess import PIPE, STDOUT
+import sys
+
+from distutils.spawn import find_executable
+
+import yaml
 
 
 class ErrorParsingEntry(Exception):
     pass
 
+
 class FormatNotSupported(Exception):
     pass
+
 
 class BGPPeer(object):
     def __init__(self, address, asn):
         self.address = address
         self.asn = asn
+
 
 class ASPath(object):
     def __init__(self, s):
@@ -31,8 +33,10 @@ class ASPath(object):
         else:
             return False
 
+
 class Prefixes(object):
     pass
+
 
 class BGPEntry(object):
     toAddr = '127.0.0.1'
@@ -60,29 +64,34 @@ class BGPEntry(object):
             else:
                 return False
 
+
 class BGPPrefixes(object):
     def __init__(self, prefixes):
         self.prefixes = prefixes
 
+
 class BGPWithdraw(BGPEntry):
     def fromParts(self, parts):
         message_type, timestamp, \
-        xxx1, \
-        from_addr, from_asn, prefixes = parts
+            xxx1, \
+            from_addr, from_asn, \
+            prefixes = parts
 
         self.fromPeer = BGPPeer(from_addr, int(from_asn))
         self.toPeer = BGPPeer(self.to_addr, self.to_asn)
         self.prefixes = BGPPrefixes(prefixes)
 
+
 class BGPUpdate(BGPEntry):
     def fromParts(self, parts):
         message_type, timestamp, \
-        xxx1, \
-        from_addr, from_asn, prefixes, as_path, \
-        origin_protocol, next_hop, \
-        xxx2, xxx3, \
-        community, \
-        xxx4, xxx5, xxx6 = parts
+            xxx1, \
+            from_addr, from_asn, \
+            prefixes, as_path, \
+            origin_protocol, next_hop, \
+            xxx2, xxx3, \
+            community, \
+            xxx4, xxx5, xxx6 = parts
 
         self.fromPeer = BGPPeer(from_addr, int(from_asn))
         self.toPeer = BGPPeer(self.to_addr, self.to_asn)
@@ -92,6 +101,7 @@ class BGPUpdate(BGPEntry):
         self.originProtocol = origin_protocol
         self.nextHop = next_hop
         self.community = community
+
 
 class BGPEntryFactory(object):
     """
@@ -122,10 +132,13 @@ class BGPEntryFactory(object):
             bgp_widthdraw.fromParts(parts)
             return bgp_widthdraw
 
+
 class BGPDump(object):
-    bgpdump = '/usr/local/bin/bgpdump'
     updateFiles = []
     entryFactory = BGPEntryFactory()
+
+    def __init__(self):
+        self.bgpdump = find_executable('bgpdump')
 
     def parseLine(self, line):
         entry = BGPEntry()
@@ -149,7 +162,7 @@ class BGPDump(object):
         for filename in self.updateFiles:
             cmd = [self.bgpdump, '-m', filename]
             print "Running %s" % cmd
-            p = subprocess.Popen(cmd, stdout = PIPE)
+            p = subprocess.Popen(cmd, stdout = subprocess.PIPE)
             for line in p.stdout:
                 entry = self.entryFactory.fromLine(line)
                 if entry.relatedTo(asns):
@@ -161,24 +174,25 @@ class BGPDump(object):
         for entry in self.getUpdates(asns):
             yield yaml.dump(self.getUpdates(asns))
 
-try:
-    filename = sys.argv[1]
-except:
-    print "run with python parser.py <filename>"
+if __name__ == "__main__":
+    try:
+        filename = sys.argv[1]
+    except:
+        print "run with python parser.py <filename>"
+        sys.exit(1)
 
-bgpdump = BGPDump()
-# basepath = "path/to/bgp/bgpfoo/updates/"
-# REPLACE THESE WITH THE UPDATE FILES OF THE TIMEFRAME YOU ARE INTERESTED IN
-#
-# filename1 = os.path.join(basepath, 'updates.20121128.2145.bz2')
-# filename2 = os.path.join(basepath, 'updates.20121128.2145.bz2')
-# filename = 'updates.20121202.0000.bz2'
-# ASN is the list of ASNs we are interested in collecting update and withdraw
-# messages on
-asns = ['2497']
+    bgpdump = BGPDump()
+    # basepath = "path/to/bgp/bgpfoo/updates/"
+    # REPLACE THESE WITH THE UPDATE FILES OF THE TIMEFRAME YOU ARE INTERESTED IN
+    #
+    # filename1 = os.path.join(basepath, 'updates.20121128.2145.bz2')
+    # filename2 = os.path.join(basepath, 'updates.20121128.2145.bz2')
+    # filename = 'updates.20121202.0000.bz2'
+    # ASN is the list of ASNs we are interested in collecting update and withdraw
+    # messages on
+    asns = ['2497']
 
-#bgpdump.updateFiles = [filename1, filename2]
-bgpdump.updateFiles = [filename]
-for x in bgpdump.getYAMLUpdates(asns):
-    print x
-
+    # bgpdump.updateFiles = [filename1, filename2]
+    bgpdump.updateFiles = [filename]
+    for x in bgpdump.getYAMLUpdates(asns):
+        print x
